@@ -1,0 +1,35 @@
+{
+  "name": "picklehoster",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && wrangler dev",
+    "cf:deploy": "opennextjs-cloudflare build && wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute picklehoster --local --file=./migrations/0001_initial.sql",
+    "db:migrate:remote": "wrangler d1 execute picklehoster --remote --file=./migrations/0001_initial.sql",
+    "db:types": "wrangler types"
+  },
+  "dependencies": {
+    "@opennextjs/cloudflare": "^1.0.0-beta.3",
+    "lucide-react": "^0.468.0",
+    "next": "^15.2.3",
+    "qrcode.react": "^3.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5",
+    "wrangler": "^4.65.0"
+  }
+}
