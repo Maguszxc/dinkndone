@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Pickaxe } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 const ROTATION_OPTIONS = [
   {
@@ -12,13 +12,13 @@ const ROTATION_OPTIONS = [
   },
   {
     value: 2,
-    label: "Winners Stay",
-    desc: "Winners stay on court; 2 new challengers join",
+    label: "Win vs Win & Lose vs Lose",
+    desc: "Everyone rests — winners queue up against winners, losers against losers",
   },
   {
     value: 3,
     label: "Social Split",
-    desc: "Winners stay but split partners; 2 new join",
+    desc: "Everyone rests — next 4 from queue play, partners are mixed (1st+3rd vs 2nd+4th)",
   },
 ];
 
@@ -49,7 +49,9 @@ export default function HomePage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error((data as { error?: string }).error ?? "Failed to create session");
+        throw new Error(
+          (data as { error?: string }).error ?? "Failed to create session",
+        );
       }
 
       const data = (await res.json()) as { slug: string };
@@ -65,11 +67,9 @@ export default function HomePage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500 mb-4">
-            <Pickaxe className="w-8 h-8 text-black" />
-          </div>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500 mb-4"></div>
           <h1 className="text-4xl font-black tracking-tight text-white">
-            Pickle<span className="text-green-400">hoster</span>
+            Dink<span className="text-green-400">&</span>Done
           </h1>
           <p className="text-gray-400 mt-2 text-sm">
             Zero-hassle pickleball queue management
@@ -100,7 +100,18 @@ export default function HomePage() {
             <label className="block text-sm font-semibold text-gray-300 mb-2">
               Number of Courts
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-auto gap-2">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                placeholder="Custom"
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val) && val > 0) setNumCourts(val);
+                }}
+                className="w-20 bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <button
                   key={n}

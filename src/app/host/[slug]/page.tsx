@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Play,
   StopCircle,
-  Download,
   Users,
   Trophy,
   Copy,
@@ -14,9 +13,18 @@ import {
   ExternalLink,
   RefreshCw,
   X,
+  Trash2,
+  Loader2,
+  Frown,
 } from "lucide-react";
 import type { BoardData, MatchWithPlayers } from "@/types";
 import { ROTATION_LABELS } from "@/types";
+
+type RevealPhase = "reveal" | "spinner";
+interface RevealState {
+  match: MatchWithPlayers;
+  phase: RevealPhase;
+}
 
 const COURT_COLORS = [
   "border-yellow-400",
@@ -49,6 +57,7 @@ interface EndMatchModal {
 
 export default function HostPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const [board, setBoard] = useState<BoardData | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
@@ -56,7 +65,11 @@ export default function HostPage() {
   const [copied, setCopied] = useState(false);
   const [endModal, setEndModal] = useState<EndMatchModal | null>(null);
   const [endingMatch, setEndingMatch] = useState(false);
-  const [removingPlayer, setRemovingPlayer] = useState<number | null>(null);
+  const [showEndSession, setShowEndSession] = useState(false);
+  const [endingSession, setEndingSession] = useState(false);
+  const [reveals, setReveals] = useState<Record<number, RevealState>>({});
+  const seenEndedIds = useRef<Set<number>>(new Set());
+  const firstLoad = useRef(true);
   const [origin, setOrigin] = useState("");
 
   useEffect(() => {
@@ -65,11 +78,40 @@ export default function HostPage() {
 
   const fetchBoard = useCallback(async () => {
     const res = await fetch(`/api/sessions/${slug}/board`);
-    if (res.ok) {
-      const data = (await res.json()) as BoardData;
-      setBoard(data);
-      setSessionStarted(data.session.is_active === 1);
+    if (!res.ok) return;
+    const data = (await res.json()) as BoardData;
+    setBoard(data);
+    setSessionStarted(data.session.is_active === 1);
+
+    // On first load, mark all existing ended matches as seen (no animation)
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      data.recentlyEnded.forEach((m) => seenEndedIds.current.add(m.id));
+      return;
     }
+
+    // Trigger reveal animation for newly ended matches
+    data.recentlyEnded.forEach((match) => {
+      if (seenEndedIds.current.has(match.id)) return;
+      seenEndedIds.current.add(match.id);
+
+      setReveals((prev) => ({ ...prev, [match.court_number]: { match, phase: "reveal" } }));
+
+      setTimeout(() => {
+        setReveals((prev) => ({
+          ...prev,
+          [match.court_number]: { match, phase: "spinner" },
+        }));
+      }, 4000);
+
+      setTimeout(() => {
+        setReveals((prev) => {
+          const next = { ...prev };
+          delete next[match.court_number];
+          return next;
+        });
+      }, 6500);
+    });
   }, [slug]);
 
   useEffect(() => {
@@ -107,8 +149,15 @@ export default function HostPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function handleCsvDownload() {
-    window.open(`/api/sessions/${slug}/csv`, "_blank");
+  async function handleEndSession() {
+    setEndingSession(true);
+    try {
+      await fetch(`/api/sessions/${slug}`, { method: "DELETE" });
+      router.push("/");
+    } catch {
+      setEndingSession(false);
+      setShowEndSession(false);
+    }
   }
 
   if (!board) {
@@ -142,12 +191,21 @@ export default function HostPage() {
               </span>
             </div>
           </div>
-          <button
-            onClick={fetchBoard}
-            className="text-gray-600 hover:text-gray-300 transition-colors p-2 flex-shrink-0"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={fetchBoard}
+              className="text-gray-600 hover:text-gray-300 transition-colors p-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowEndSession(true)}
+              className="text-red-500 hover:text-red-400 transition-colors p-2"
+              title="End Session"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -222,24 +280,83 @@ export default function HostPage() {
             </span>
           </div>
         )}
-        <button
-          onClick={handleCsvDownload}
-          className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold px-4 py-3 rounded-xl flex items-center gap-2 transition-all text-sm"
-        >
-          <Download className="w-4 h-4" />
-          CSV
-        </button>
       </div>
 
-      {/* Active Courts */}
-      {activeMatches.length > 0 && (
+      {/* Active Courts + Reveal Animations */}
+      {(activeMatches.length > 0 || Object.keys(reveals).length > 0) && (
         <section className="mb-5">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-3">
-            Active Matches
+            On Court
           </h2>
           <div className="space-y-3">
+            {/* Reveal cards for recently ended matches */}
+            {Object.values(reveals).map((reveal) => {
+              const idx = (reveal.match.court_number - 1) % COURT_COLORS.length;
+              const isPureQueue = session.rotation_type === 1;
+              const w = reveal.match.winner_team;
+              const loserP1 = w === "a" ? reveal.match.team_b_p1_name : reveal.match.team_a_p1_name;
+              const loserP2 = w === "a" ? reveal.match.team_b_p2_name : reveal.match.team_a_p2_name;
+              const winnerP1 = w === "a" ? reveal.match.team_a_p1_name : reveal.match.team_b_p1_name;
+              const winnerP2 = w === "a" ? reveal.match.team_a_p2_name : reveal.match.team_b_p2_name;
+              return (
+                <div
+                  key={`reveal-${reveal.match.id}`}
+                  className={`rounded-2xl border-2 ${COURT_COLORS[idx]} ${COURT_BG[idx]} p-4`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`text-xs font-black uppercase tracking-widest ${COURT_TEXT[idx]}`}>
+                      Court {reveal.match.court_number}
+                    </span>
+                    <span className="text-xs text-gray-500 font-semibold">Match Over</span>
+                  </div>
+
+                  {reveal.phase === "reveal" ? (
+                    isPureQueue ? (
+                      <div className="text-center py-3">
+                        <p className="text-gray-300 font-bold text-sm">All players back in queue</p>
+                        <div className="flex justify-center gap-2 mt-3 flex-wrap">
+                          {[reveal.match.team_a_p1_name, reveal.match.team_a_p2_name,
+                            reveal.match.team_b_p1_name, reveal.match.team_b_p2_name].map((name) => (
+                            <span key={name} className="bg-gray-800 text-gray-300 text-xs font-semibold px-3 py-1.5 rounded-full">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-center">
+                          <div className="flex items-center justify-center gap-1 mb-2">
+                            <Frown className="w-3.5 h-3.5 text-red-400" />
+                            <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">They Lost</span>
+                          </div>
+                          <div className="text-white font-bold text-sm">{loserP1}</div>
+                          <div className="text-gray-300 text-sm">{loserP2}</div>
+                        </div>
+                        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 text-center">
+                          <div className="flex items-center justify-center gap-1 mb-2">
+                            <Trophy className="w-3.5 h-3.5 text-green-400" />
+                            <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Winners!</span>
+                          </div>
+                          <div className="text-white font-bold text-sm">{winnerP1}</div>
+                          <div className="text-gray-300 text-sm">{winnerP2}</div>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-7 h-7 text-gray-400 animate-spin" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Active match cards — no team labels */}
             {activeMatches.map((match) => {
               const idx = (match.court_number - 1) % COURT_COLORS.length;
+              const isRevealing = !!reveals[match.court_number];
+              if (isRevealing) return null;
               return (
                 <div
                   key={match.id}
@@ -257,21 +374,21 @@ export default function HostPage() {
                       End Match
                     </button>
                   </div>
+                  {/* 4 players in a 2x2 grid — no team labels */}
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-gray-900/80 rounded-xl p-3">
-                      <div className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider mb-1">
-                        Team A
+                    {[
+                      match.team_a_p1_name,
+                      match.team_b_p1_name,
+                      match.team_a_p2_name,
+                      match.team_b_p2_name,
+                    ].map((name, i) => (
+                      <div key={i} className="bg-gray-900/80 rounded-xl px-3 py-2.5 text-center">
+                        <span className="text-white font-bold text-sm">{name}</span>
                       </div>
-                      <div className="text-white font-bold text-sm">{match.team_a_p1_name}</div>
-                      <div className="text-gray-400 text-sm">{match.team_a_p2_name}</div>
-                    </div>
-                    <div className="bg-gray-900/80 rounded-xl p-3">
-                      <div className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">
-                        Team B
-                      </div>
-                      <div className="text-white font-bold text-sm">{match.team_b_p1_name}</div>
-                      <div className="text-gray-400 text-sm">{match.team_b_p2_name}</div>
-                    </div>
+                    ))}
+                  </div>
+                  <div className="text-center mt-2">
+                    <span className="text-gray-600 text-xs">Teams are decided on court</span>
                   </div>
                 </div>
               );
@@ -359,6 +476,44 @@ export default function HostPage() {
         </div>
       </section>
 
+      {/* End Session Modal */}
+      {showEndSession && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl border border-red-500/40 w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-white text-lg">End Session?</h3>
+              <button
+                onClick={() => setShowEndSession(false)}
+                className="text-gray-600 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-gray-400 text-sm mb-6">
+              This will <span className="text-red-400 font-semibold">permanently delete</span> the
+              session, all players, and all match history. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEndSession(false)}
+                disabled={endingSession}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 rounded-xl transition-all text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndSession}
+                disabled={endingSession}
+                className="flex-1 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {endingSession ? "Ending…" : "End & Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* End Match Modal */}
       {endModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
@@ -375,47 +530,59 @@ export default function HostPage() {
               </button>
             </div>
 
-            <p className="text-gray-400 text-sm mb-5">Who won?</p>
-
-            <div className="space-y-3">
-              <button
-                onClick={() => handleEndMatch("a")}
-                disabled={endingMatch}
-                className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 font-bold py-4 rounded-xl flex flex-col items-center gap-1 transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4" />
-                  Team A Wins
-                </div>
-                <span className="text-xs text-yellow-400/70 font-normal">
-                  {endModal.match.team_a_p1_name} &amp; {endModal.match.team_a_p2_name}
-                </span>
-              </button>
-
-              <button
-                onClick={() => handleEndMatch("b")}
-                disabled={endingMatch}
-                className="w-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold py-4 rounded-xl flex flex-col items-center gap-1 transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4" />
-                  Team B Wins
-                </div>
-                <span className="text-xs text-blue-400/70 font-normal">
-                  {endModal.match.team_b_p1_name} &amp; {endModal.match.team_b_p2_name}
-                </span>
-              </button>
-
-              {session.rotation_type === 1 && (
+            {session.rotation_type === 3 ? (
+              // Social Split — winner doesn't matter, everyone queues
+              <div className="space-y-3">
+                <p className="text-gray-400 text-sm">Everyone goes back to queue after this match.</p>
                 <button
                   onClick={() => handleEndMatch(null)}
                   disabled={endingMatch}
-                  className="w-full bg-gray-800 hover:bg-gray-700 text-gray-400 font-semibold py-3 rounded-xl transition-all text-sm"
+                  className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold py-4 rounded-xl transition-all"
                 >
-                  No winner / Skip
+                  End Match
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              // Types 1 & 2 — declare winner
+              <div className="space-y-3">
+                <p className="text-gray-400 text-sm mb-1">Who won?</p>
+                <button
+                  onClick={() => handleEndMatch("a")}
+                  disabled={endingMatch}
+                  className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 font-bold py-4 rounded-xl flex flex-col items-center gap-1 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4" />
+                    Team A Wins
+                  </div>
+                  <span className="text-xs text-yellow-400/70 font-normal">
+                    {endModal.match.team_a_p1_name} &amp; {endModal.match.team_a_p2_name}
+                  </span>
+                </button>
+                <button
+                  onClick={() => handleEndMatch("b")}
+                  disabled={endingMatch}
+                  className="w-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold py-4 rounded-xl flex flex-col items-center gap-1 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4" />
+                    Team B Wins
+                  </div>
+                  <span className="text-xs text-blue-400/70 font-normal">
+                    {endModal.match.team_b_p1_name} &amp; {endModal.match.team_b_p2_name}
+                  </span>
+                </button>
+                {session.rotation_type === 1 && (
+                  <button
+                    onClick={() => handleEndMatch(null)}
+                    disabled={endingMatch}
+                    className="w-full bg-gray-800 hover:bg-gray-700 text-gray-400 font-semibold py-3 rounded-xl transition-all text-sm"
+                  >
+                    No winner / Skip
+                  </button>
+                )}
+              </div>
+            )}
 
             {endingMatch && (
               <p className="text-center text-gray-500 text-sm mt-4 animate-pulse">

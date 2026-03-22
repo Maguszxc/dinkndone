@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { getDB } from "@/lib/db";
 import type { Player, Session } from "@/types";
 
+function generatePassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous 0/O/1/I
+  let result = "";
+  for (let i = 0; i < 10; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+}
 
 export async function POST(
   request: Request,
@@ -38,20 +46,21 @@ export async function POST(
 
     if (duplicate) {
       return NextResponse.json(
-        { error: "A player with that name already joined" },
+        { error: "That name is already taken in this session" },
         { status: 409 }
       );
     }
 
+    const password = generatePassword();
+
     const player = await db
       .prepare(
-        `INSERT INTO players (session_id, name, status)
-         VALUES (?, ?, 'waiting') RETURNING *`
+        `INSERT INTO players (session_id, name, status, password)
+         VALUES (?, ?, 'waiting', ?) RETURNING *`
       )
-      .bind(session.id, name)
+      .bind(session.id, name, password)
       .first<Player>();
 
-    // Count their queue position
     const posResult = await db
       .prepare(
         `SELECT COUNT(*) as pos FROM players

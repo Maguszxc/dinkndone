@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDB } from "@/lib/db";
-import { triggerRotation } from "@/lib/rotation";
+import { triggerRotation, fillEmptyCourts } from "@/lib/rotation";
 import type { Match, Session } from "@/types";
 
 
@@ -46,8 +46,9 @@ export async function POST(
 
     const closedMatch = { ...match, is_active: 0, winner_team: body.winner_team ?? null };
 
-    // Trigger rotation
+    // Trigger rotation for this court, then fill any other empty courts
     await triggerRotation(db, session, closedMatch, body.winner_team ?? null);
+    await fillEmptyCourts(db, session);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

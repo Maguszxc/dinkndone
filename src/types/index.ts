@@ -14,6 +14,8 @@ export interface Player {
   name: string;
   status: "waiting" | "playing";
   joined_at: string;
+  password: string | null;
+  last_result: "won" | "lost" | null;
 }
 
 export interface Match {
@@ -42,10 +44,11 @@ export interface BoardData {
   activeMatches: MatchWithPlayers[];
   waitingPlayers: Player[];
   allPlayers: Player[];
+  recentlyEnded: MatchWithPlayers[];
 }
 
 export const ROTATION_LABELS: Record<number, string> = {
   1: "Pure Queue",
-  2: "Winners Stay",
+  2: "Win vs Win & Lose vs Lose",
   3: "Social Split",
 };

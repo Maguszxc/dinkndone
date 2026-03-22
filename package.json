@@ -9,8 +9,8 @@
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && wrangler dev",
     "cf:deploy": "opennextjs-cloudflare build && wrangler deploy",
-    "db:migrate:local": "wrangler d1 execute picklehoster --local --file=./migrations/0001_initial.sql",
-    "db:migrate:remote": "wrangler d1 execute picklehoster --remote --file=./migrations/0001_initial.sql",
+    "db:migrate:local": "wrangler d1 execute picklehoster --local --file=./migrations/0001_initial.sql && wrangler d1 execute picklehoster --local --file=./migrations/0002_player_password.sql && wrangler d1 execute picklehoster --local --file=./migrations/0003_loss_reporter.sql && wrangler d1 execute picklehoster --local --file=./migrations/0004_player_last_result.sql",
+    "db:migrate:remote": "wrangler d1 execute picklehoster --remote --file=./migrations/0001_initial.sql && wrangler d1 execute picklehoster --remote --file=./migrations/0002_player_password.sql && wrangler d1 execute picklehoster --remote --file=./migrations/0003_loss_reporter.sql && wrangler d1 execute picklehoster --remote --file=./migrations/0004_player_last_result.sql",
     "db:types": "wrangler types"
   },
   "dependencies": {
