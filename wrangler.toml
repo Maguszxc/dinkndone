@@ -1,4 +1,4 @@
-name = "picklehoster"
+name = "dinkndone"
 main = ".open-next/worker.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
@@ -6,8 +6,8 @@ compatibility_flags = ["nodejs_compat"]
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
 [[d1_databases]]
-binding = "picklehoster"
-database_name = "picklehoster"
+binding = "dinkndone"
+database_name = "dinkndone"
 database_id = "6db320cb-6080-4fc4-af46-67f07b8efac7"
 
 [dev]
