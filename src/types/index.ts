@@ -6,6 +6,7 @@ export interface Session {
   rotation_type: 1 | 2 | 3; // 1: Pure Queue, 2: Winners Stay, 3: Social Split
   is_active: number; // 0 | 1 (SQLite boolean)
   created_at: string;
+  last_match_at: number | null; // Unix timestamp, updated when a match starts or ends
 }
 
 export interface Player {

@@ -21,9 +21,9 @@ export async function POST(
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // Activate session
+    // Activate session and set last_match_at to now
     await db
-      .prepare("UPDATE sessions SET is_active = 1 WHERE id = ?")
+      .prepare("UPDATE sessions SET is_active = 1, last_match_at = unixepoch() WHERE id = ?")
       .bind(session.id)
       .run();
 

@@ -35,13 +35,18 @@ export async function POST(
       return NextResponse.json({ error: "Active match not found" }, { status: 404 });
     }
 
-    // Close the match
+    // Close the match and update session activity timestamp
     await db
       .prepare(
         `UPDATE matches SET is_active = 0, ended_at = datetime('now'), winner_team = ?
          WHERE id = ?`
       )
       .bind(body.winner_team ?? null, match.id)
+      .run();
+
+    await db
+      .prepare("UPDATE sessions SET last_match_at = unixepoch() WHERE id = ?")
+      .bind(session.id)
       .run();
 
     const closedMatch = { ...match, is_active: 0, winner_team: body.winner_team ?? null };

@@ -38,6 +38,18 @@ export async function POST(
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
+    // Check player cap
+    const playerCount = await db
+      .prepare("SELECT COUNT(*) as count FROM players WHERE session_id = ?")
+      .bind(session.id)
+      .first<{ count: number }>();
+    if ((playerCount?.count ?? 0) >= 100) {
+      return NextResponse.json(
+        { error: "This session is full (max 100 players)" },
+        { status: 403 }
+      );
+    }
+
     // Check for duplicate name in this session
     const duplicate = await db
       .prepare("SELECT id FROM players WHERE session_id = ? AND LOWER(name) = LOWER(?)")

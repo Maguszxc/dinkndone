@@ -16,6 +16,7 @@ import {
   Trash2,
   Loader2,
   Frown,
+  AlertTriangle,
 } from "lucide-react";
 import type { BoardData, MatchWithPlayers } from "@/types";
 import { ROTATION_LABELS } from "@/types";
@@ -71,6 +72,7 @@ export default function HostPage() {
   const seenEndedIds = useRef<Set<number>>(new Set());
   const firstLoad = useRef(true);
   const [origin, setOrigin] = useState("");
+  const [idleSeconds, setIdleSeconds] = useState<number | null>(null);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -119,6 +121,16 @@ export default function HostPage() {
     const id = setInterval(fetchBoard, 5000);
     return () => clearInterval(id);
   }, [fetchBoard]);
+
+  // Countdown ticker — updates every second independently of the board poll
+  useEffect(() => {
+    if (!board?.session.is_active || !board.session.last_match_at) return;
+    const lastMatchAt = board.session.last_match_at;
+    const tick = () => setIdleSeconds(Math.floor(Date.now() / 1000) - lastMatchAt);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [board?.session.last_match_at, board?.session.is_active]);
 
   const joinUrl = origin ? `${origin}/join/${slug}` : "";
   const boardUrl = origin ? `${origin}/board/${slug}` : "";
@@ -208,6 +220,29 @@ export default function HostPage() {
           </div>
         </div>
       </div>
+
+      {/* Idle warning banner */}
+      {sessionStarted && idleSeconds !== null && idleSeconds >= 60 * 60 && (
+        <div className="mb-5 bg-yellow-500/10 border border-yellow-500/40 rounded-2xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-yellow-300 font-bold text-sm">No match activity in a while</p>
+            <p className="text-yellow-400/70 text-xs mt-0.5">
+              This session will be auto-closed in{" "}
+              <span className="font-mono font-bold text-yellow-300">
+                {Math.floor(Math.max(0, 90 * 60 - idleSeconds) / 60)
+                  .toString()
+                  .padStart(2, "0")}
+                :
+                {(Math.max(0, 90 * 60 - idleSeconds) % 60)
+                  .toString()
+                  .padStart(2, "0")}
+              </span>{" "}
+              if no matches are played. Start a match to reset the timer.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* QR + Links */}
       <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 mb-5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
@@ -29,6 +29,19 @@ export default function HomePage() {
   const [rotationType, setRotationType] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [atCapacity, setAtCapacity] = useState(false);
+  const [activeSessions, setActiveSessions] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/sessions")
+      .then((r) => r.json())
+      .then((data) => {
+        const d = data as { at_capacity: boolean; active_sessions: number };
+        setAtCapacity(d.at_capacity);
+        setActiveSessions(d.active_sessions);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -76,117 +89,127 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Form */}
-        <form
-          onSubmit={handleCreate}
-          className="bg-gray-900 rounded-2xl p-6 space-y-6 border border-gray-800"
-        >
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">
-              Group / Session Name
-            </label>
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder="e.g. Tuesday Night Picklers"
-              maxLength={60}
-              required
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-base"
-            />
+        {atCapacity ? (
+          <div className="bg-gray-900 rounded-2xl p-6 border border-yellow-500/40 text-center space-y-3">
+            <div className="text-yellow-400 text-3xl font-black">10 / 10</div>
+            <p className="text-white font-bold">Server is at capacity</p>
+            <p className="text-gray-400 text-sm">
+              All {activeSessions} session slots are currently in use. Sessions
+              auto-close after 90 minutes of inactivity. Check back soon.
+            </p>
           </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">
-              Number of Courts
-            </label>
-            <div className="flex flex-auto gap-2">
+        ) : (
+          <form
+            onSubmit={handleCreate}
+            className="bg-gray-900 rounded-2xl p-6 space-y-6 border border-gray-800"
+          >
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">
+                Group / Session Name
+              </label>
               <input
-                type="number"
-                min={1}
-                max={20}
-                placeholder="Custom"
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (!isNaN(val) && val > 0) setNumCourts(val);
-                }}
-                className="w-20 bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="e.g. Tuesday Night Picklers"
+                maxLength={60}
+                required
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-base"
               />
-              {[1, 2, 3, 4, 5, 6].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setNumCourts(n)}
-                  className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
-                    numCourts === n
-                      ? "bg-green-500 text-black"
-                      : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">
-              Rotation Type
-            </label>
-            <div className="space-y-2">
-              {ROTATION_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setRotationType(opt.value)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all ${
-                    rotationType === opt.value
-                      ? "border-green-500 bg-green-500/10"
-                      : "border-gray-700 bg-gray-800 hover:border-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                        rotationType === opt.value
-                          ? "border-green-500 bg-green-500"
-                          : "border-gray-600"
-                      }`}
-                    />
-                    <div>
-                      <div className="font-semibold text-white text-sm">
-                        {opt.label}
-                      </div>
-                      <div className="text-gray-400 text-xs mt-0.5">
-                        {opt.desc}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">
+                Number of Courts
+              </label>
+              <div className="flex flex-auto gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  placeholder="Custom"
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val) && val > 0) setNumCourts(val);
+                  }}
+                  className="w-20 bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setNumCourts(n)}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
+                      numCourts === n
+                        ? "bg-green-500 text-black"
+                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">
+                Rotation Type
+              </label>
+              <div className="space-y-2">
+                {ROTATION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setRotationType(opt.value)}
+                    className={`w-full text-left p-4 rounded-xl border transition-all ${
+                      rotationType === opt.value
+                        ? "border-green-500 bg-green-500/10"
+                        : "border-gray-700 bg-gray-800 hover:border-gray-600"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                          rotationType === opt.value
+                            ? "border-green-500 bg-green-500"
+                            : "border-gray-600"
+                        }`}
+                      />
+                      <div>
+                        <div className="font-semibold text-white text-sm">
+                          {opt.label}
+                        </div>
+                        <div className="text-gray-400 text-xs mt-0.5">
+                          {opt.desc}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {error && (
-            <p className="text-red-400 text-sm bg-red-500/10 rounded-lg p-3">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || !groupName.trim()}
-            className="w-full bg-green-500 hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all text-base"
-          >
-            {loading ? (
-              <span className="animate-pulse">Creating…</span>
-            ) : (
-              <>
-                Create Session <ChevronRight className="w-5 h-5" />
-              </>
+            {error && (
+              <p className="text-red-400 text-sm bg-red-500/10 rounded-lg p-3">
+                {error}
+              </p>
             )}
-          </button>
-        </form>
+
+            <button
+              type="submit"
+              disabled={loading || !groupName.trim()}
+              className="w-full bg-green-500 hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all text-base"
+            >
+              {loading ? (
+                <span className="animate-pulse">Creating…</span>
+              ) : (
+                <>
+                  Create Session <ChevronRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
+        )}
       </div>
     </main>
   );
