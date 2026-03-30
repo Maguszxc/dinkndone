@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { UserPlus, Clock, Trophy, Copy, Check, KeyRound, RefreshCw, ThumbsDown } from "lucide-react";
+import { UserPlus, Clock, Trophy, Copy, Check, KeyRound, RefreshCw, ThumbsDown, Loader2 } from "lucide-react";
 import type { BoardData, Player } from "@/types";
 
 type PageState = "loading" | "new" | "returning" | "password_reveal" | "playing" | "ended";
@@ -32,7 +32,7 @@ export default function JoinPage() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [board, setBoard] = useState<BoardData | null>(null);
   const [copied, setCopied] = useState(false);
-  const [reportedLoss, setReportedLoss] = useState(false);
+  const [reportedLossMatchId, setReportedLossMatchId] = useState<number | null>(null);
   const [lossLoading, setLossLoading] = useState(false);
 
   // Load session name
@@ -157,15 +157,25 @@ export default function JoinPage() {
   }
 
   async function handleReportLoss(matchId: number) {
-    if (reportedLoss || !player) return;
+    if (reportedLossMatchId === matchId || !player) return;
     setLossLoading(true);
     try {
-      await fetch(`/api/sessions/${slug}/report-loss`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ match_id: matchId, player_id: player.id }),
-      });
-      setReportedLoss(true);
+      const [res] = await Promise.all([
+        fetch(`/api/sessions/${slug}/report-loss`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ match_id: matchId, player_id: player.id }),
+        }).then((r) => r.json()),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
+      const data = res as { status: string };
+      setReportedLossMatchId(matchId);
+      if (data.status === "ended") {
+        fetch(`/api/sessions/${slug}/board`)
+          .then((r) => r.json())
+          .then((d) => { if (d) setBoard(d as BoardData); })
+          .catch(() => {});
+      }
     } catch {
       // silently fail — poll will catch state changes
     } finally {
@@ -265,11 +275,6 @@ export default function JoinPage() {
       );
     }
 
-    // Reset loss report state when player goes back to waiting
-    if (myStatus === "waiting" && reportedLoss) {
-      setReportedLoss(false);
-    }
-
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-4">
@@ -284,7 +289,8 @@ export default function JoinPage() {
             <div className="bg-green-500/10 border border-green-500 rounded-2xl p-6 text-center">
               <Trophy className="w-10 h-10 text-green-400 mx-auto mb-3" />
               <p className="text-green-400 font-black text-xl">YOU'RE ON COURT!</p>
-              <p className="text-white text-lg font-bold mt-1">Court {myMatch.court_number}</p>
+              <p className="text-green-300/70 text-sm font-medium mt-0.5">Dink-in and enjoy the game! 🏓</p>
+              <p className="text-white text-lg font-bold mt-2">Court {myMatch.court_number}</p>
               <div className="mt-4 space-y-2">
                 <div className="text-sm text-gray-300">
                   <span className="text-yellow-400 font-semibold">Team A:</span>{" "}
@@ -298,18 +304,22 @@ export default function JoinPage() {
               </div>
 
               <div className="mt-5 pt-4 border-t border-green-500/20">
-                {reportedLoss ? (
+                {lossLoading ? (
+                  <div className="flex items-center justify-center gap-2 text-gray-400 text-sm font-semibold py-3">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Reporting loss…
+                  </div>
+                ) : reportedLossMatchId === myMatch.id ? (
                   <div className="text-yellow-400 text-sm font-semibold animate-pulse">
                     ⏳ Waiting for your partner to confirm…
                   </div>
                 ) : (
                   <button
                     onClick={() => handleReportLoss(myMatch.id)}
-                    disabled={lossLoading}
-                    className="w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50"
+                    className="w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm"
                   >
                     <ThumbsDown className="w-4 h-4" />
-                    {lossLoading ? "Reporting…" : "We Lost"}
+                    We Lost
                   </button>
                 )}
               </div>

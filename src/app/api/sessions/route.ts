@@ -16,6 +16,15 @@ function generateSlug(): string {
   return slug;
 }
 
+function generatePassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+  for (let i = 0; i < 10; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+}
+
 export async function GET() {
   try {
     const db = await getDB();
@@ -88,15 +97,20 @@ export async function POST(request: Request) {
       .first();
     if (existing) slug = generateSlug();
 
+    const hostPassword = generatePassword();
+
     const session = await db
       .prepare(
-        `INSERT INTO sessions (group_name, slug, num_courts, rotation_type, is_active)
-         VALUES (?, ?, ?, ?, 0) RETURNING *`
+        `INSERT INTO sessions (group_name, slug, num_courts, rotation_type, is_active, host_password)
+         VALUES (?, ?, ?, ?, 0, ?) RETURNING *`
       )
-      .bind(group_name.trim(), slug, num_courts, rotation_type)
+      .bind(group_name.trim(), slug, num_courts, rotation_type, hostPassword)
       .first();
 
-    return NextResponse.json({ slug: (session as { slug: string }).slug }, { status: 201 });
+    return NextResponse.json(
+      { slug: (session as { slug: string }).slug, host_password: hostPassword },
+      { status: 201 }
+    );
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

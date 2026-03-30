@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(find e:dinkndone -name *.sql -o -name prisma.schema -o -name schema.prisma)",
+      "Bash(npx wrangler:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
