@@ -106,7 +106,9 @@ export default function HostPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   // Team setup state
-  const [teamSetupModal, setTeamSetupModal] = useState<TeamSetupModal | null>(null);
+  const [teamSetupModal, setTeamSetupModal] = useState<TeamSetupModal | null>(
+    null,
+  );
   const [savingTeams, setSavingTeams] = useState(false);
   const [shuffling, setShuffling] = useState(false);
 
@@ -136,14 +138,17 @@ export default function HostPage() {
       if (seenEndedIds.current.has(match.id)) return;
       seenEndedIds.current.add(match.id);
 
-      setReveals((prev) => ({ ...prev, [match.court_number]: { match, phase: "reveal" } }));
+      setReveals((prev) => ({
+        ...prev,
+        [match.court_number]: { match, phase: "reveal" },
+      }));
 
       setTimeout(() => {
         setReveals((prev) => ({
           ...prev,
           [match.court_number]: { match, phase: "spinner" },
         }));
-      }, 4000);
+      }, 1500);
 
       setTimeout(() => {
         setReveals((prev) => {
@@ -151,7 +156,7 @@ export default function HostPage() {
           delete next[match.court_number];
           return next;
         });
-      }, 6500);
+      }, 2000);
     });
   }, [slug]);
 
@@ -164,7 +169,8 @@ export default function HostPage() {
   useEffect(() => {
     if (!board?.session.is_active || !board.session.last_match_at) return;
     const lastMatchAt = board.session.last_match_at;
-    const tick = () => setIdleSeconds(Math.floor(Date.now() / 1000) - lastMatchAt);
+    const tick = () =>
+      setIdleSeconds(Math.floor(Date.now() / 1000) - lastMatchAt);
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -176,8 +182,8 @@ export default function HostPage() {
   async function handleStart() {
     setLoading(true);
     await fetch(`/api/sessions/${slug}/start`, { method: "POST" });
-    await fetchBoard();
     setLoading(false);
+    fetchBoard();
   }
 
   async function handleEndMatch(winnerId: "a" | "b" | null) {
@@ -186,11 +192,14 @@ export default function HostPage() {
     await fetch(`/api/sessions/${slug}/end`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ match_id: endModal.match.id, winner_team: winnerId }),
+      body: JSON.stringify({
+        match_id: endModal.match.id,
+        winner_team: winnerId,
+      }),
     });
     setEndModal(null);
     setEndingMatch(false);
-    await fetchBoard();
+    fetchBoard();
   }
 
   function handleCopy() {
@@ -220,8 +229,8 @@ export default function HostPage() {
   async function handleShuffle() {
     setShuffling(true);
     await fetch(`/api/sessions/${slug}/shuffle`, { method: "POST" });
-    await fetchBoard();
     setShuffling(false);
+    fetchBoard();
   }
 
   async function handleSwitchPlayer(inPlayerId: number) {
@@ -238,7 +247,7 @@ export default function HostPage() {
     });
     setSwitchModal(null);
     setSwitching(false);
-    await fetchBoard();
+    fetchBoard();
   }
 
   async function handleDeletePlayer(playerId: number) {
@@ -248,9 +257,11 @@ export default function HostPage() {
     }
     setDeletingPlayerId(playerId);
     setConfirmDeleteId(null);
-    await fetch(`/api/sessions/${slug}/players/${playerId}`, { method: "DELETE" });
+    await fetch(`/api/sessions/${slug}/players/${playerId}`, {
+      method: "DELETE",
+    });
     setDeletingPlayerId(null);
-    await fetchBoard();
+    fetchBoard();
   }
 
   function openTeamSetup(match: MatchWithPlayers) {
@@ -277,7 +288,11 @@ export default function HostPage() {
       // Swap the two players
       const next = [...arrangement] as TeamSetupModal["arrangement"];
       [next[selectedIdx], next[idx]] = [next[idx], next[selectedIdx]];
-      setTeamSetupModal({ ...teamSetupModal, arrangement: next, selectedIdx: null });
+      setTeamSetupModal({
+        ...teamSetupModal,
+        arrangement: next,
+        selectedIdx: null,
+      });
     }
   }
 
@@ -298,13 +313,15 @@ export default function HostPage() {
     });
     setTeamSetupModal(null);
     setSavingTeams(false);
-    await fetchBoard();
+    fetchBoard();
   }
 
   if (!board) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500 animate-pulse font-bold text-lg">Loading…</div>
+        <div className="text-gray-500 animate-pulse font-bold text-lg">
+          Loading…
+        </div>
       </main>
     );
   }
@@ -312,10 +329,12 @@ export default function HostPage() {
   const { session, activeMatches, waitingPlayers, allPlayers } = board;
 
   const activeCourts = new Set(activeMatches.map((m) => m.court_number));
-  const revealCourts = new Set(Object.values(reveals).map((r) => r.match.court_number));
+  const revealCourts = new Set(
+    Object.values(reveals).map((r) => r.match.court_number),
+  );
   const emptyCourts = sessionStarted
     ? Array.from({ length: session.num_courts }, (_, i) => i + 1).filter(
-        (n) => !activeCourts.has(n) && !revealCourts.has(n)
+        (n) => !activeCourts.has(n) && !revealCourts.has(n),
       )
     : [];
 
@@ -363,7 +382,9 @@ export default function HostPage() {
         <div className="mb-5 bg-yellow-500/10 border border-yellow-500/40 rounded-2xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-yellow-300 font-bold text-sm">No match activity in a while</p>
+            <p className="text-yellow-300 font-bold text-sm">
+              No match activity in a while
+            </p>
             <p className="text-yellow-400/70 text-xs mt-0.5">
               This session will be auto-closed in{" "}
               <span className="font-mono font-bold text-yellow-300">
@@ -465,7 +486,9 @@ export default function HostPage() {
         ) : (
           <div className="flex-1 flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-400 font-bold text-sm">Session Live</span>
+            <span className="text-green-400 font-bold text-sm">
+              Session Live
+            </span>
             <span className="text-gray-500 text-xs ml-auto">
               {allPlayers.length} players
             </span>
@@ -474,7 +497,9 @@ export default function HostPage() {
       </div>
 
       {/* Active Courts + Reveal Animations */}
-      {(activeMatches.length > 0 || Object.keys(reveals).length > 0 || emptyCourts.length > 0) && (
+      {(activeMatches.length > 0 ||
+        Object.keys(reveals).length > 0 ||
+        emptyCourts.length > 0) && (
         <section className="mb-5">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-3">
             On Court
@@ -485,30 +510,55 @@ export default function HostPage() {
               const idx = (reveal.match.court_number - 1) % COURT_COLORS.length;
               const isPureQueue = session.rotation_type === 1;
               const w = reveal.match.winner_team;
-              const loserP1 = w === "a" ? reveal.match.team_b_p1_name : reveal.match.team_a_p1_name;
-              const loserP2 = w === "a" ? reveal.match.team_b_p2_name : reveal.match.team_a_p2_name;
-              const winnerP1 = w === "a" ? reveal.match.team_a_p1_name : reveal.match.team_b_p1_name;
-              const winnerP2 = w === "a" ? reveal.match.team_a_p2_name : reveal.match.team_b_p2_name;
+              const loserP1 =
+                w === "a"
+                  ? reveal.match.team_b_p1_name
+                  : reveal.match.team_a_p1_name;
+              const loserP2 =
+                w === "a"
+                  ? reveal.match.team_b_p2_name
+                  : reveal.match.team_a_p2_name;
+              const winnerP1 =
+                w === "a"
+                  ? reveal.match.team_a_p1_name
+                  : reveal.match.team_b_p1_name;
+              const winnerP2 =
+                w === "a"
+                  ? reveal.match.team_a_p2_name
+                  : reveal.match.team_b_p2_name;
               return (
                 <div
                   key={`reveal-${reveal.match.id}`}
                   className={`rounded-2xl border-2 ${COURT_COLORS[idx]} ${COURT_BG[idx]} p-4`}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-xs font-black uppercase tracking-widest ${COURT_TEXT[idx]}`}>
+                    <span
+                      className={`text-xs font-black uppercase tracking-widest ${COURT_TEXT[idx]}`}
+                    >
                       Court {reveal.match.court_number}
                     </span>
-                    <span className="text-xs text-gray-500 font-semibold">Match Over</span>
+                    <span className="text-xs text-gray-500 font-semibold">
+                      Match Over
+                    </span>
                   </div>
 
                   {reveal.phase === "reveal" ? (
                     isPureQueue ? (
                       <div className="text-center py-3">
-                        <p className="text-gray-300 font-bold text-sm">All players back in queue</p>
+                        <p className="text-gray-300 font-bold text-sm">
+                          All players back in queue
+                        </p>
                         <div className="flex justify-center gap-2 mt-3 flex-wrap">
-                          {[reveal.match.team_a_p1_name, reveal.match.team_a_p2_name,
-                            reveal.match.team_b_p1_name, reveal.match.team_b_p2_name].map((name) => (
-                            <span key={name} className="bg-gray-800 text-gray-300 text-xs font-semibold px-3 py-1.5 rounded-full">
+                          {[
+                            reveal.match.team_a_p1_name,
+                            reveal.match.team_a_p2_name,
+                            reveal.match.team_b_p1_name,
+                            reveal.match.team_b_p2_name,
+                          ].map((name) => (
+                            <span
+                              key={name}
+                              className="bg-gray-800 text-gray-300 text-xs font-semibold px-3 py-1.5 rounded-full"
+                            >
                               {name}
                             </span>
                           ))}
@@ -519,18 +569,28 @@ export default function HostPage() {
                         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-center">
                           <div className="flex items-center justify-center gap-1 mb-2">
                             <Frown className="w-3.5 h-3.5 text-red-400" />
-                            <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">They Lost</span>
+                            <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
+                              They Lost
+                            </span>
                           </div>
-                          <div className="text-white font-bold text-sm">{loserP1}</div>
+                          <div className="text-white font-bold text-sm">
+                            {loserP1}
+                          </div>
                           <div className="text-gray-300 text-sm">{loserP2}</div>
                         </div>
                         <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 text-center">
                           <div className="flex items-center justify-center gap-1 mb-2">
                             <Trophy className="w-3.5 h-3.5 text-green-400" />
-                            <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Winners!</span>
+                            <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">
+                              Winners!
+                            </span>
                           </div>
-                          <div className="text-white font-bold text-sm">{winnerP1}</div>
-                          <div className="text-gray-300 text-sm">{winnerP2}</div>
+                          <div className="text-white font-bold text-sm">
+                            {winnerP1}
+                          </div>
+                          <div className="text-gray-300 text-sm">
+                            {winnerP2}
+                          </div>
                         </div>
                       </div>
                     )
@@ -552,7 +612,9 @@ export default function HostPage() {
                   className={`rounded-2xl border-2 ${COURT_COLORS[idx]} ${COURT_BG[idx]} p-4`}
                 >
                   <div className="mb-3">
-                    <span className={`text-xs font-black uppercase tracking-widest ${COURT_TEXT[idx]}`}>
+                    <span
+                      className={`text-xs font-black uppercase tracking-widest ${COURT_TEXT[idx]}`}
+                    >
                       Court {courtNum}
                     </span>
                   </div>
@@ -577,7 +639,9 @@ export default function HostPage() {
                   className={`rounded-2xl border-2 ${COURT_COLORS[idx]} ${COURT_BG[idx]} p-4`}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-xs font-black uppercase tracking-widest ${COURT_TEXT[idx]}`}>
+                    <span
+                      className={`text-xs font-black uppercase tracking-widest ${COURT_TEXT[idx]}`}
+                    >
                       Court {match.court_number}
                     </span>
                     <div className="flex items-center gap-2">
@@ -600,7 +664,9 @@ export default function HostPage() {
 
                   {/* Team A */}
                   <div className="mb-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400/70 mb-1 px-1">Team A</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400/70 mb-1 px-1">
+                      Team A
+                    </p>
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         { id: match.team_a_p1, name: match.team_a_p1_name },
@@ -618,7 +684,9 @@ export default function HostPage() {
                           className="bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 rounded-xl px-3 py-2.5 text-center group transition-all relative"
                           title={`Swap ${slot.name}`}
                         >
-                          <span className="text-white font-bold text-sm">{slot.name}</span>
+                          <span className="text-white font-bold text-sm">
+                            {slot.name}
+                          </span>
                           <span className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <ArrowLeftRight className="w-3 h-3 text-gray-500" />
                           </span>
@@ -629,7 +697,9 @@ export default function HostPage() {
 
                   {/* Team B */}
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-400/70 mb-1 px-1">Team B</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-400/70 mb-1 px-1">
+                      Team B
+                    </p>
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         { id: match.team_b_p1, name: match.team_b_p1_name },
@@ -647,7 +717,9 @@ export default function HostPage() {
                           className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl px-3 py-2.5 text-center group transition-all relative"
                           title={`Swap ${slot.name}`}
                         >
-                          <span className="text-white font-bold text-sm">{slot.name}</span>
+                          <span className="text-white font-bold text-sm">
+                            {slot.name}
+                          </span>
                           <span className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <ArrowLeftRight className="w-3 h-3 text-gray-500" />
                           </span>
@@ -657,7 +729,9 @@ export default function HostPage() {
                   </div>
 
                   <div className="text-center mt-2">
-                    <span className="text-gray-700 text-xs">Tap a player to swap from queue</span>
+                    <span className="text-gray-700 text-xs">
+                      Tap a player to swap from queue
+                    </span>
                   </div>
                 </div>
               );
@@ -673,29 +747,33 @@ export default function HostPage() {
             Queue — {waitingPlayers.length} waiting
           </h2>
           <div className="flex items-center gap-2">
-            {sessionStarted && activeMatches.length === 0 && allPlayers.length >= 4 && (
-              <button
-                onClick={handleShuffle}
-                disabled={shuffling}
-                className="text-xs text-purple-400 hover:text-purple-300 disabled:opacity-50 font-semibold flex items-center gap-1"
-              >
-                {shuffling ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Shuffle className="w-3 h-3" />
-                )}
-                Reshuffle
-              </button>
-            )}
-            {sessionStarted && waitingPlayers.length >= 4 && activeMatches.length < session.num_courts && (
-              <button
-                onClick={handleStart}
-                className="text-xs text-green-400 hover:text-green-300 font-semibold flex items-center gap-1"
-              >
-                <Play className="w-3 h-3" />
-                Fill Courts
-              </button>
-            )}
+            {sessionStarted &&
+              activeMatches.length === 0 &&
+              allPlayers.length >= 4 && (
+                <button
+                  onClick={handleShuffle}
+                  disabled={shuffling}
+                  className="text-xs text-purple-400 hover:text-purple-300 disabled:opacity-50 font-semibold flex items-center gap-1"
+                >
+                  {shuffling ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Shuffle className="w-3 h-3" />
+                  )}
+                  Reshuffle
+                </button>
+              )}
+            {sessionStarted &&
+              waitingPlayers.length >= 4 &&
+              activeMatches.length < session.num_courts && (
+                <button
+                  onClick={handleStart}
+                  className="text-xs text-green-400 hover:text-green-300 font-semibold flex items-center gap-1"
+                >
+                  <Play className="w-3 h-3" />
+                  Fill Courts
+                </button>
+              )}
           </div>
         </div>
 
@@ -717,7 +795,9 @@ export default function HostPage() {
                 >
                   {i + 1}
                 </span>
-                <span className="text-sm font-semibold text-white flex-1">{p.name}</span>
+                <span className="text-sm font-semibold text-white flex-1">
+                  {p.name}
+                </span>
                 {i < 4 && (
                   <span className="text-[10px] text-green-400 font-bold uppercase tracking-wide">
                     Next Up
@@ -777,7 +857,9 @@ export default function HostPage() {
                 <span className="text-sm font-medium text-white">{p.name}</span>
                 <span
                   className={`ml-auto text-[10px] font-bold uppercase ${
-                    p.status === "playing" ? "text-green-400" : "text-yellow-400"
+                    p.status === "playing"
+                      ? "text-green-400"
+                      : "text-yellow-400"
                   }`}
                 >
                   {p.status}
@@ -802,8 +884,12 @@ export default function HostPage() {
               </button>
             </div>
             <p className="text-gray-400 text-sm mb-6">
-              This will <span className="text-red-400 font-semibold">permanently delete</span> the
-              session, all players, and all match history. This cannot be undone.
+              This will{" "}
+              <span className="text-red-400 font-semibold">
+                permanently delete
+              </span>{" "}
+              the session, all players, and all match history. This cannot be
+              undone.
             </p>
             <div className="flex gap-3">
               <button
@@ -844,7 +930,9 @@ export default function HostPage() {
 
             {session.rotation_type === 3 ? (
               <div className="space-y-3">
-                <p className="text-gray-400 text-sm">Everyone goes back to queue after this match.</p>
+                <p className="text-gray-400 text-sm">
+                  Everyone goes back to queue after this match.
+                </p>
                 <button
                   onClick={() => handleEndMatch(null)}
                   disabled={endingMatch}
@@ -866,7 +954,8 @@ export default function HostPage() {
                     Team A Wins
                   </div>
                   <span className="text-xs text-yellow-400/70 font-normal">
-                    {endModal.match.team_a_p1_name} &amp; {endModal.match.team_a_p2_name}
+                    {endModal.match.team_a_p1_name} &amp;{" "}
+                    {endModal.match.team_a_p2_name}
                   </span>
                 </button>
                 <button
@@ -879,7 +968,8 @@ export default function HostPage() {
                     Team B Wins
                   </div>
                   <span className="text-xs text-blue-400/70 font-normal">
-                    {endModal.match.team_b_p1_name} &amp; {endModal.match.team_b_p2_name}
+                    {endModal.match.team_b_p1_name} &amp;{" "}
+                    {endModal.match.team_b_p2_name}
                   </span>
                 </button>
                 {session.rotation_type === 1 && (
@@ -917,12 +1007,15 @@ export default function HostPage() {
               </button>
             </div>
             <p className="text-gray-500 text-xs mb-5">
-              Tap two players to swap them between teams. Team A wins or Team B wins will reflect this lineup.
+              Tap two players to swap them between teams. Team A wins or Team B
+              wins will reflect this lineup.
             </p>
 
             {/* Team A */}
             <div className="mb-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400 mb-2">Team A</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400 mb-2">
+                Team A
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {[0, 1].map((i) => {
                   const slot = teamSetupModal.arrangement[i];
@@ -952,7 +1045,9 @@ export default function HostPage() {
 
             {/* Team B */}
             <div className="mb-6">
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">Team B</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">
+                Team B
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {[2, 3].map((i) => {
                   const slot = teamSetupModal.arrangement[i];
@@ -1014,7 +1109,9 @@ export default function HostPage() {
             </div>
             <p className="text-gray-400 text-sm mb-5">
               Replace{" "}
-              <span className="text-white font-bold">{switchModal.outPlayerName}</span>{" "}
+              <span className="text-white font-bold">
+                {switchModal.outPlayerName}
+              </span>{" "}
               with someone from the queue.
             </p>
 
@@ -1033,12 +1130,16 @@ export default function HostPage() {
                   >
                     <span
                       className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        i < 4 ? "bg-green-500 text-black" : "bg-gray-700 text-gray-400"
+                        i < 4
+                          ? "bg-green-500 text-black"
+                          : "bg-gray-700 text-gray-400"
                       }`}
                     >
                       {i + 1}
                     </span>
-                    <span className="text-sm font-semibold text-white">{p.name}</span>
+                    <span className="text-sm font-semibold text-white">
+                      {p.name}
+                    </span>
                     <ArrowLeftRight className="w-3.5 h-3.5 text-gray-600 ml-auto" />
                   </button>
                 ))}

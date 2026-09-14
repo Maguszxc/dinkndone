@@ -160,22 +160,16 @@ export default function JoinPage() {
     if (reportedLossMatchId === matchId || !player) return;
     setLossLoading(true);
     try {
-      const [res] = await Promise.all([
-        fetch(`/api/sessions/${slug}/report-loss`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ match_id: matchId, player_id: player.id }),
-        }).then((r) => r.json()),
-        new Promise((resolve) => setTimeout(resolve, 2000)),
-      ]);
-      const data = res as { status: string };
+      await fetch(`/api/sessions/${slug}/report-loss`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ match_id: matchId, player_id: player.id }),
+      });
       setReportedLossMatchId(matchId);
-      if (data.status === "ended") {
-        fetch(`/api/sessions/${slug}/board`)
-          .then((r) => r.json())
-          .then((d) => { if (d) setBoard(d as BoardData); })
-          .catch(() => {});
-      }
+      fetch(`/api/sessions/${slug}/board`)
+        .then((r) => r.json())
+        .then((d) => { if (d) setBoard(d as BoardData); })
+        .catch(() => {});
     } catch {
       // silently fail — poll will catch state changes
     } finally {
@@ -309,14 +303,11 @@ export default function JoinPage() {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Reporting loss…
                   </div>
-                ) : reportedLossMatchId === myMatch.id ? (
-                  <div className="text-yellow-400 text-sm font-semibold animate-pulse">
-                    ⏳ Waiting for your partner to confirm…
-                  </div>
                 ) : (
                   <button
                     onClick={() => handleReportLoss(myMatch.id)}
-                    className="w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm"
+                    disabled={reportedLossMatchId === myMatch.id}
+                    className="w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50"
                   >
                     <ThumbsDown className="w-4 h-4" />
                     We Lost

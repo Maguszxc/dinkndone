@@ -41,24 +41,11 @@ export async function POST(
       return NextResponse.json({ error: "You are not in this match" }, { status: 403 });
     }
 
-    // Duplicate tap — ignore
-    if (match.loss_reporter_1 === body.player_id) {
-      return NextResponse.json({ status: "waiting" });
-    }
-
-    // First tap — record and wait for partner
-    if (!match.loss_reporter_1) {
-      await db
-        .prepare("UPDATE matches SET loss_reporter_1 = ? WHERE id = ?")
-        .bind(body.player_id, match.id)
-        .run();
-      return NextResponse.json({ status: "waiting" });
-    }
-
-    // Second tap from a different player — end the match
-    const reporter1 = match.loss_reporter_1;
-    const reporter2 = body.player_id;
-    const losers = [reporter1, reporter2];
+    // Determine losing team from reporter's position
+    const isTeamA = match.team_a_p1 === body.player_id || match.team_a_p2 === body.player_id;
+    const losers = isTeamA
+      ? [match.team_a_p1, match.team_a_p2]
+      : [match.team_b_p1, match.team_b_p2];
     const winners = allPlayers.filter((id) => !losers.includes(id));
 
     // Rewrite the match record with real teams: losers = team_a, winners = team_b
