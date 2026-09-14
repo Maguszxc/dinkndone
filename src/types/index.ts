@@ -4,6 +4,7 @@ export interface Session {
   slug: string;
   num_courts: number;
   rotation_type: 1 | 2 | 3; // 1: Pure Queue, 2: Win/Lose
+  show_leaderboard: number; // 0 | 1
   is_active: number; // 0 | 1 (SQLite boolean)
   created_at: string;
   last_match_at: number | null; // Unix timestamp, updated when a match starts or ends
@@ -40,12 +41,21 @@ export interface MatchWithPlayers extends Match {
   team_b_p2_name: string;
 }
 
+export interface LeaderboardEntry {
+  id: number;
+  name: string;
+  wins: number;
+  losses: number;
+  games: number;
+}
+
 export interface BoardData {
   session: Session;
   activeMatches: MatchWithPlayers[];
   waitingPlayers: Player[];
   allPlayers: Player[];
   recentlyEnded: MatchWithPlayers[];
+  leaderboard: LeaderboardEntry[];
 }
 
 export const ROTATION_LABELS: Record<number, string> = {

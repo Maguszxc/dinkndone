@@ -24,6 +24,7 @@ export default function HomePage() {
   const [groupName, setGroupName] = useState("");
   const [numCourts, setNumCourts] = useState(2);
   const [rotationType, setRotationType] = useState(2);
+  const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [atCapacity, setAtCapacity] = useState(false);
@@ -93,6 +94,7 @@ export default function HomePage() {
           group_name: groupName.trim(),
           num_courts: numCourts,
           rotation_type: rotationType,
+          show_leaderboard: showLeaderboard,
         }),
       });
 
@@ -199,7 +201,10 @@ export default function HomePage() {
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setRotationType(opt.value)}
+                    onClick={() => {
+                      setRotationType(opt.value);
+                      setShowLeaderboard(opt.value === 2);
+                    }}
                     className={`w-full text-left p-4 rounded-xl border transition-all ${
                       rotationType === opt.value
                         ? "border-green-500 bg-green-500/10"
@@ -226,6 +231,27 @@ export default function HomePage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Leaderboard toggle */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowLeaderboard(!showLeaderboard)}
+                className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${
+                  showLeaderboard
+                    ? "border-green-500 bg-green-500/10"
+                    : "border-gray-700 bg-gray-800 hover:border-gray-600"
+                }`}
+              >
+                <div>
+                  <div className="font-semibold text-white text-sm text-left">Show Leaderboard</div>
+                  <div className="text-gray-400 text-xs mt-0.5 text-left">Players can see rankings and win/loss stats</div>
+                </div>
+                <div className={`w-11 h-6 rounded-full relative transition-all flex-shrink-0 ${showLeaderboard ? "bg-green-500" : "bg-gray-600"}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${showLeaderboard ? "left-6" : "left-1"}`} />
+                </div>
+              </button>
             </div>
 
             {error && (

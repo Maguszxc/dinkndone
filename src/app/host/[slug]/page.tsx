@@ -215,7 +215,14 @@ export default function HostPage() {
     setTimeout(() => setCopiedHostCode(false), 2000);
   }
 
-  async function handleEndSession() {
+  function handleExportCSV() {
+    const a = document.createElement("a");
+    a.href = `/api/sessions/${slug}/csv`;
+    a.click();
+  }
+
+  async function handleEndSession(exportFirst = false) {
+    if (exportFirst) handleExportCSV();
     setEndingSession(true);
     try {
       await fetch(`/api/sessions/${slug}`, { method: "DELETE" });
@@ -888,24 +895,32 @@ export default function HostPage() {
               <span className="text-red-400 font-semibold">
                 permanently delete
               </span>{" "}
-              the session, all players, and all match history. This cannot be
-              undone.
+              the session, all players, and all match history. Export first if
+              you want to save a record.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => handleEndSession(true)}
+                disabled={endingSession}
+                className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <StopCircle className="w-4 h-4" />
+                {endingSession ? "Ending…" : "Export CSV & End Session"}
+              </button>
+              <button
+                onClick={() => handleEndSession(false)}
+                disabled={endingSession}
+                className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {endingSession ? "Ending…" : "End without Exporting"}
+              </button>
               <button
                 onClick={() => setShowEndSession(false)}
                 disabled={endingSession}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 rounded-xl transition-all text-sm"
+                className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 rounded-xl transition-all text-sm"
               >
                 Cancel
-              </button>
-              <button
-                onClick={handleEndSession}
-                disabled={endingSession}
-                className="flex-1 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                {endingSession ? "Ending…" : "End & Delete"}
               </button>
             </div>
           </div>

@@ -350,6 +350,44 @@ export default function JoinPage() {
             </div>
           )}
 
+          {/* Leaderboard */}
+          {board.session.show_leaderboard === 1 && board.leaderboard.length > 0 && (
+            <div className="bg-gray-900 rounded-2xl p-4 border border-gray-800">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                Leaderboard
+              </h3>
+              <div className="space-y-2">
+                {board.leaderboard.map((entry, i) => {
+                  const winRate = entry.games > 0 ? Math.round((entry.wins / entry.games) * 100) : 0;
+                  const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+                  const isMe = entry.id === playerId;
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
+                        isMe ? "bg-green-500/10 border border-green-500/30" :
+                        i < 3 ? "bg-gray-800" : ""
+                      }`}
+                    >
+                      <span className="w-5 text-center text-sm font-black text-gray-500 flex-shrink-0">
+                        {medal ?? `${i + 1}`}
+                      </span>
+                      <span className={`flex-1 text-sm font-semibold truncate ${isMe ? "text-green-400" : i < 3 ? "text-white" : "text-gray-400"}`}>
+                        {entry.name}{isMe && " (you)"}
+                      </span>
+                      <div className="flex items-center gap-2 text-xs font-bold flex-shrink-0">
+                        <span className="text-green-400">{entry.wins}W</span>
+                        <span className="text-red-400">{entry.losses}L</span>
+                        <span className="text-gray-600">{entry.games}G</span>
+                        <span className="text-gray-500 w-9 text-right">{winRate}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Recovery code reminder */}
           {player?.password && (
             <div className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">

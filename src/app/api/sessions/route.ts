@@ -50,9 +50,10 @@ export async function POST(request: Request) {
       group_name: string;
       num_courts: number;
       rotation_type: number;
+      show_leaderboard: boolean;
     };
 
-    const { group_name, num_courts, rotation_type } = body;
+    const { group_name, num_courts, rotation_type, show_leaderboard } = body;
 
     if (!group_name?.trim()) {
       return NextResponse.json({ error: "Group name required" }, { status: 400 });
@@ -101,10 +102,10 @@ export async function POST(request: Request) {
 
     const session = await db
       .prepare(
-        `INSERT INTO sessions (group_name, slug, num_courts, rotation_type, is_active, host_password)
-         VALUES (?, ?, ?, ?, 0, ?) RETURNING *`
+        `INSERT INTO sessions (group_name, slug, num_courts, rotation_type, show_leaderboard, is_active, host_password)
+         VALUES (?, ?, ?, ?, ?, 0, ?) RETURNING *`
       )
-      .bind(group_name.trim(), slug, num_courts, rotation_type, hostPassword)
+      .bind(group_name.trim(), slug, num_courts, rotation_type, show_leaderboard ? 1 : 0, hostPassword)
       .first();
 
     return NextResponse.json(

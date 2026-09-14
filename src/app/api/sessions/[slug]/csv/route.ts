@@ -49,36 +49,32 @@ export async function GET(
       .all<MatchRow>();
 
     const rows = result.results;
-    const lines: string[] = [
-      "Match,Court,Team A P1,Team A P2,Team B P1,Team B P2,Started,Ended,Winner",
-    ];
+    const lines: string[] = ["#,Court,Team A,Team B,Winner,Started,Ended"];
 
-    for (const r of rows) {
+    rows.forEach((r, i) => {
+      const teamA = `${r.team_a_p1_name} & ${r.team_a_p2_name}`;
+      const teamB = `${r.team_b_p1_name} & ${r.team_b_p2_name}`;
       const winner =
-        r.winner_team === "a"
-          ? `${r.team_a_p1_name}/${r.team_a_p2_name}`
-          : r.winner_team === "b"
-          ? `${r.team_b_p1_name}/${r.team_b_p2_name}`
-          : "";
+        r.winner_team === "a" ? teamA
+        : r.winner_team === "b" ? teamB
+        : "No winner";
       lines.push(
         [
-          r.id,
-          r.court_number,
-          r.team_a_p1_name,
-          r.team_a_p2_name,
-          r.team_b_p1_name,
-          r.team_b_p2_name,
+          `Match ${i + 1}`,
+          `Court ${r.court_number}`,
+          teamA,
+          teamB,
+          winner,
           r.started_at,
           r.ended_at ?? "",
-          winner,
         ]
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(",")
       );
-    }
+    });
 
     const csv = lines.join("\n");
-    const filename = `picklehoster-${slug}-${new Date().toISOString().slice(0, 10)}.csv`;
+    const filename = `dinkndone-${slug}-${new Date().toISOString().slice(0, 10)}.csv`;
 
     return new Response(csv, {
       headers: {

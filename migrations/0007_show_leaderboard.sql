@@ -1,0 +1,1 @@
+ALTER TABLE sessions ADD COLUMN show_leaderboard INTEGER NOT NULL DEFAULT 0;

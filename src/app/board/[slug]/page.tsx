@@ -201,6 +201,42 @@ export default function BoardPage() {
         </div>
       )}
 
+      {/* Leaderboard */}
+      {board.session.show_leaderboard === 1 && board.leaderboard.length > 0 && (
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 mt-4">
+          <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">
+            Leaderboard
+          </h2>
+          <div className="space-y-2">
+            {board.leaderboard.map((entry, i) => {
+              const winRate = entry.games > 0 ? Math.round((entry.wins / entry.games) * 100) : 0;
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+              return (
+                <div
+                  key={entry.id}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${
+                    i < 3 ? "bg-gray-800 border border-gray-700" : ""
+                  }`}
+                >
+                  <span className="w-6 text-center text-sm font-black text-gray-500 flex-shrink-0">
+                    {medal ?? `${i + 1}`}
+                  </span>
+                  <span className={`flex-1 text-sm font-semibold truncate ${i < 3 ? "text-white" : "text-gray-400"}`}>
+                    {entry.name}
+                  </span>
+                  <div className="flex items-center gap-3 text-xs font-bold flex-shrink-0">
+                    <span className="text-green-400">{entry.wins}W</span>
+                    <span className="text-red-400">{entry.losses}L</span>
+                    <span className="text-gray-600">{entry.games}G</span>
+                    <span className="text-gray-500 w-10 text-right">{winRate}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <p className="text-center text-gray-700 text-xs mt-6">
         Refreshes every 10s · scan {slug} to join
