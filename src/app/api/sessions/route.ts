@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     if (num_courts < 1 || num_courts > 6) {
       return NextResponse.json({ error: "Courts must be 1–6" }, { status: 400 });
     }
-    if (![1, 2, 3].includes(rotation_type)) {
+    if (![1, 2].includes(rotation_type)) {
       return NextResponse.json({ error: "Invalid rotation type" }, { status: 400 });
     }
 

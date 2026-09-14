@@ -108,6 +108,7 @@ export default function HostPage() {
   // Team setup state
   const [teamSetupModal, setTeamSetupModal] = useState<TeamSetupModal | null>(null);
   const [savingTeams, setSavingTeams] = useState(false);
+  const [shuffling, setShuffling] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -214,6 +215,13 @@ export default function HostPage() {
       setEndingSession(false);
       setShowEndSession(false);
     }
+  }
+
+  async function handleShuffle() {
+    setShuffling(true);
+    await fetch(`/api/sessions/${slug}/shuffle`, { method: "POST" });
+    await fetchBoard();
+    setShuffling(false);
   }
 
   async function handleSwitchPlayer(inPlayerId: number) {
@@ -664,15 +672,31 @@ export default function HostPage() {
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">
             Queue — {waitingPlayers.length} waiting
           </h2>
-          {sessionStarted && waitingPlayers.length >= 4 && activeMatches.length < session.num_courts && (
-            <button
-              onClick={handleStart}
-              className="text-xs text-green-400 hover:text-green-300 font-semibold flex items-center gap-1"
-            >
-              <Play className="w-3 h-3" />
-              Fill Courts
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {sessionStarted && activeMatches.length === 0 && allPlayers.length >= 4 && (
+              <button
+                onClick={handleShuffle}
+                disabled={shuffling}
+                className="text-xs text-purple-400 hover:text-purple-300 disabled:opacity-50 font-semibold flex items-center gap-1"
+              >
+                {shuffling ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Shuffle className="w-3 h-3" />
+                )}
+                Reshuffle
+              </button>
+            )}
+            {sessionStarted && waitingPlayers.length >= 4 && activeMatches.length < session.num_courts && (
+              <button
+                onClick={handleStart}
+                className="text-xs text-green-400 hover:text-green-300 font-semibold flex items-center gap-1"
+              >
+                <Play className="w-3 h-3" />
+                Fill Courts
+              </button>
+            )}
+          </div>
         </div>
 
         {waitingPlayers.length === 0 ? (

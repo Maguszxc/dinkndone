@@ -3,7 +3,7 @@ export interface Session {
   group_name: string;
   slug: string;
   num_courts: number;
-  rotation_type: 1 | 2 | 3; // 1: Pure Queue, 2: Winners Stay, 3: Social Split
+  rotation_type: 1 | 2 | 3; // 1: Pure Queue, 2: Win/Lose
   is_active: number; // 0 | 1 (SQLite boolean)
   created_at: string;
   last_match_at: number | null; // Unix timestamp, updated when a match starts or ends
@@ -50,6 +50,6 @@ export interface BoardData {
 
 export const ROTATION_LABELS: Record<number, string> = {
   1: "Pure Queue",
-  2: "Win vs Win & Lose vs Lose",
+  2: "Win / Lose",
   3: "Social Split",
 };

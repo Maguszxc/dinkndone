@@ -8,19 +8,14 @@ const GCASH_NUMBER = "09279779220";
 
 const ROTATION_OPTIONS = [
   {
-    value: 1,
-    label: "Pure Queue",
-    desc: "4 finish → next 4 from queue replace them",
-  },
-  {
     value: 2,
-    label: "Win vs Win & Lose vs Lose",
+    label: "Win / Lose",
     desc: "Everyone rests — winners queue up against winners, losers against losers",
   },
   {
-    value: 3,
-    label: "Social Split",
-    desc: "Everyone rests — next 4 from queue play, partners are mixed (1st+3rd vs 2nd+4th)",
+    value: 1,
+    label: "Pure Queue",
+    desc: "4 finish → next 4 from queue replace them, no win/loss tracking",
   },
 ];
 
@@ -28,7 +23,7 @@ export default function HomePage() {
   const router = useRouter();
   const [groupName, setGroupName] = useState("");
   const [numCourts, setNumCourts] = useState(2);
-  const [rotationType, setRotationType] = useState(1);
+  const [rotationType, setRotationType] = useState(2);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [atCapacity, setAtCapacity] = useState(false);
