@@ -18,6 +18,7 @@ export interface Player {
   joined_at: string;
   password: string | null;
   last_result: "won" | "lost" | null;
+  partner_id: number | null;
 }
 
 export interface Match {

@@ -48,6 +48,55 @@ async function markPlayersWaiting(
   }
 }
 
+/**
+ * Try to keep bound partners on the same team. Only looks at the first
+ * few players in the queue so a distant pair can't jump far ahead of
+ * people who have been waiting longer. Falls back to plain FIFO pairing
+ * (1+2 vs 3+4) if partners can't be cleanly grouped within that window.
+ */
+function assembleFromQueue(queue: Player[]): [[number, number], [number, number]] | null {
+  if (queue.length < 4) return null;
+
+  const LOOKAHEAD = 8;
+  const windowed = queue.slice(0, LOOKAHEAD);
+  const idSet = new Set(windowed.map((p) => p.id));
+  const visited = new Set<number>();
+  const units: number[][] = [];
+
+  for (const p of windowed) {
+    if (visited.has(p.id)) continue;
+    visited.add(p.id);
+    if (p.partner_id && idSet.has(p.partner_id) && !visited.has(p.partner_id)) {
+      visited.add(p.partner_id);
+      units.push([p.id, p.partner_id]);
+    } else {
+      units.push([p.id]);
+    }
+  }
+
+  const teamA: number[] = [];
+  const teamB: number[] = [];
+  for (const unit of units) {
+    if (teamA.length === 2 && teamB.length === 2) break;
+    if (unit.length + teamA.length <= 2) teamA.push(...unit);
+    else if (unit.length + teamB.length <= 2) teamB.push(...unit);
+  }
+
+  if (teamA.length === 2 && teamB.length === 2) {
+    return [
+      [teamA[0], teamA[1]],
+      [teamB[0], teamB[1]],
+    ];
+  }
+
+  // Couldn't cleanly group partners within the lookahead window —
+  // fall back to plain FIFO so the court always fills.
+  return [
+    [queue[0].id, queue[1].id],
+    [queue[2].id, queue[3].id],
+  ];
+}
+
 async function createMatch(
   db: D1Database,
   sessionId: number,
@@ -83,13 +132,9 @@ async function assembleNextMatch(
 ): Promise<[[number, number], [number, number]] | null> {
   switch (session.rotation_type) {
     case 1: {
-      // Pure Queue — next 4 in line, paired 1+2 vs 3+4
+      // Pure Queue — next 4 in line, bound partners kept together when possible
       const queue = await getWaitingQueue(db, session.id);
-      if (queue.length < 4) return null;
-      return [
-        [queue[0].id, queue[1].id],
-        [queue[2].id, queue[3].id],
-      ];
+      return assembleFromQueue(queue);
     }
 
     case 2: {
@@ -97,25 +142,15 @@ async function assembleNextMatch(
       // Priority: 4 winners → 4 losers → general queue fallback
       const winners = await getWaitingByResult(db, session.id, "won");
       if (winners.length >= 4) {
-        return [
-          [winners[0].id, winners[1].id],
-          [winners[2].id, winners[3].id],
-        ];
+        return assembleFromQueue(winners);
       }
       const losers = await getWaitingByResult(db, session.id, "lost");
       if (losers.length >= 4) {
-        return [
-          [losers[0].id, losers[1].id],
-          [losers[2].id, losers[3].id],
-        ];
+        return assembleFromQueue(losers);
       }
       // Not enough same-tier players — fall back to general queue
       const queue = await getWaitingQueue(db, session.id);
-      if (queue.length < 4) return null;
-      return [
-        [queue[0].id, queue[1].id],
-        [queue[2].id, queue[3].id],
-      ];
+      return assembleFromQueue(queue);
     }
 
     case 3: {

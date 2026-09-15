@@ -20,6 +20,9 @@ import {
   KeyRound,
   ArrowLeftRight,
   Shuffle,
+  UserPlus,
+  Link2,
+  Unlink,
 } from "lucide-react";
 import type { BoardData, MatchWithPlayers, Player } from "@/types";
 import { ROTATION_LABELS } from "@/types";
@@ -104,6 +107,15 @@ export default function HostPage() {
   // Delete player state
   const [deletingPlayerId, setDeletingPlayerId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  // Manual add player state
+  const [manualName, setManualName] = useState("");
+  const [addingPlayer, setAddingPlayer] = useState(false);
+  const [addPlayerError, setAddPlayerError] = useState("");
+
+  // Partner pairing state
+  const [pairingPlayerId, setPairingPlayerId] = useState<number | null>(null);
+  const [pairingBusy, setPairingBusy] = useState(false);
 
   // Team setup state
   const [teamSetupModal, setTeamSetupModal] = useState<TeamSetupModal | null>(
@@ -268,6 +280,60 @@ export default function HostPage() {
       method: "DELETE",
     });
     setDeletingPlayerId(null);
+    fetchBoard();
+  }
+
+  async function handleAddPlayer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!manualName.trim()) return;
+    setAddingPlayer(true);
+    setAddPlayerError("");
+    try {
+      const res = await fetch(`/api/sessions/${slug}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: manualName.trim() }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to add player");
+      setManualName("");
+      fetchBoard();
+    } catch (err) {
+      setAddPlayerError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setAddingPlayer(false);
+    }
+  }
+
+  async function handlePairTap(p: Player) {
+    if (p.partner_id) return;
+    if (pairingPlayerId === null) {
+      setPairingPlayerId(p.id);
+      return;
+    }
+    if (pairingPlayerId === p.id) {
+      setPairingPlayerId(null);
+      return;
+    }
+    setPairingBusy(true);
+    await fetch(`/api/sessions/${slug}/pair`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id_1: pairingPlayerId, player_id_2: p.id }),
+    });
+    setPairingPlayerId(null);
+    setPairingBusy(false);
+    fetchBoard();
+  }
+
+  async function handleUnpair(playerId: number) {
+    setPairingBusy(true);
+    await fetch(`/api/sessions/${slug}/unpair`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id: playerId }),
+    });
+    setPairingBusy(false);
     fetchBoard();
   }
 
@@ -747,6 +813,31 @@ export default function HostPage() {
         </section>
       )}
 
+      {/* Add Player Manually */}
+      <section className="mb-5">
+        <form onSubmit={handleAddPlayer} className="flex gap-2">
+          <input
+            type="text"
+            value={manualName}
+            onChange={(e) => setManualName(e.target.value)}
+            placeholder="Add player without a phone…"
+            maxLength={30}
+            className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+          <button
+            type="submit"
+            disabled={addingPlayer || !manualName.trim()}
+            className="bg-green-500 hover:bg-green-400 disabled:bg-gray-800 disabled:text-gray-600 text-black font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 text-sm transition-all flex-shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add
+          </button>
+        </form>
+        {addPlayerError && (
+          <p className="text-red-400 text-xs mt-2">{addPlayerError}</p>
+        )}
+      </section>
+
       {/* Waiting Queue */}
       <section className="mb-5">
         <div className="flex items-center justify-between mb-3">
@@ -784,6 +875,21 @@ export default function HostPage() {
           </div>
         </div>
 
+        {pairingPlayerId !== null && (
+          <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-2.5 mb-2">
+            <span className="text-blue-400 text-xs font-semibold">
+              Tap another waiting player to pair with{" "}
+              {waitingPlayers.find((p) => p.id === pairingPlayerId)?.name}
+            </span>
+            <button
+              onClick={() => setPairingPlayerId(null)}
+              className="text-gray-500 hover:text-white p-1"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {waitingPlayers.length === 0 ? (
           <div className="text-center py-8 text-gray-700 bg-gray-900 rounded-2xl border border-gray-800">
             <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -802,13 +908,45 @@ export default function HostPage() {
                 >
                   {i + 1}
                 </span>
-                <span className="text-sm font-semibold text-white flex-1">
-                  {p.name}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-white">
+                    {p.name}
+                  </span>
+                  {p.partner_id && (
+                    <span className="ml-2 text-[10px] text-blue-400 font-semibold">
+                      <Link2 className="w-2.5 h-2.5 inline -mt-0.5 mr-0.5" />
+                      {allPlayers.find((pl) => pl.id === p.partner_id)?.name}
+                    </span>
+                  )}
+                </div>
                 {i < 4 && (
                   <span className="text-[10px] text-green-400 font-bold uppercase tracking-wide">
                     Next Up
                   </span>
+                )}
+                {/* Pair / unpair button */}
+                {pairingBusy ? (
+                  <Loader2 className="w-4 h-4 text-gray-500 animate-spin flex-shrink-0" />
+                ) : p.partner_id ? (
+                  <button
+                    onClick={() => handleUnpair(p.id)}
+                    className="text-blue-500 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                    title="Unpair"
+                  >
+                    <Unlink className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handlePairTap(p)}
+                    className={`transition-colors p-1 flex-shrink-0 ${
+                      pairingPlayerId === p.id
+                        ? "text-blue-400"
+                        : "text-gray-700 hover:text-blue-400"
+                    }`}
+                    title="Pair with partner"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                  </button>
                 )}
                 {/* Delete player button */}
                 {deletingPlayerId === p.id ? (
