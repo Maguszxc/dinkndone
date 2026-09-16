@@ -156,7 +156,8 @@ export default function HomePage() {
             />
           </div>
           <p className="text-gray-400 mt-2 text-sm">
-            Zero-hassle pickleball queue management
+            Zero-hassle pickleball queue management to help small clubs manage
+            their courts and players efficiently.
           </p>
         </div>
 
