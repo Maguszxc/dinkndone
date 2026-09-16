@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDB } from "@/lib/db";
-import { fillEmptyCourts } from "@/lib/rotation";
+import { fillEmptyCourts, reconcileStuckPlayers } from "@/lib/rotation";
 import type { Player, Session } from "@/types";
 
 export async function POST(
@@ -33,9 +33,11 @@ export async function POST(
       );
     }
 
-    // Get all players in the session
+    await reconcileStuckPlayers(db, session.id);
+
+    // Get all non-standby players in the session
     const playersResult = await db
-      .prepare("SELECT * FROM players WHERE session_id = ?")
+      .prepare("SELECT * FROM players WHERE session_id = ? AND status != 'standby'")
       .bind(session.id)
       .all<Player>();
 

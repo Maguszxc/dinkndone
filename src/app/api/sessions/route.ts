@@ -108,6 +108,16 @@ export async function POST(request: Request) {
       .bind(group_name.trim(), slug, num_courts, rotation_type, show_leaderboard ? 1 : 0, hostPassword)
       .first();
 
+    const newSessionId = (session as { id: number }).id;
+    await Promise.all(
+      Array.from({ length: num_courts }, (_, i) => i + 1).map((n) =>
+        db
+          .prepare("INSERT INTO courts (session_id, court_number, status) VALUES (?, ?, 'active')")
+          .bind(newSessionId, n)
+          .run()
+      )
+    );
+
     return NextResponse.json(
       { slug: (session as { slug: string }).slug, host_password: hostPassword },
       { status: 201 }

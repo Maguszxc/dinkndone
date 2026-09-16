@@ -14,11 +14,18 @@ export interface Player {
   id: number;
   session_id: number;
   name: string;
-  status: "waiting" | "playing";
+  status: "waiting" | "playing" | "standby";
   joined_at: string;
   password: string | null;
   last_result: "won" | "lost" | null;
   partner_id: number | null;
+}
+
+export interface Court {
+  id: number;
+  session_id: number;
+  court_number: number;
+  status: "active" | "disabled";
 }
 
 export interface Match {
@@ -57,6 +64,7 @@ export interface BoardData {
   allPlayers: Player[];
   recentlyEnded: MatchWithPlayers[];
   leaderboard: LeaderboardEntry[];
+  courts: Court[];
 }
 
 export const ROTATION_LABELS: Record<number, string> = {

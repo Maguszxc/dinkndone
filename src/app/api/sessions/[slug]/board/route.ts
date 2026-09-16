@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDB } from "@/lib/db";
-import type { BoardData, LeaderboardEntry, Match, MatchWithPlayers, Player, Session } from "@/types";
+import type { BoardData, Court, LeaderboardEntry, Match, MatchWithPlayers, Player, Session } from "@/types";
 
 
 export async function GET(
@@ -31,7 +31,7 @@ export async function GET(
       pb1.name as team_b_p1_name, pb2.name as team_b_p2_name
       FROM matches m ${playerJoin}`;
 
-    const [matchesResult, waitingResult, allPlayersResult, recentlyEndedResult, leaderboardResult] =
+    const [matchesResult, waitingResult, allPlayersResult, recentlyEndedResult, leaderboardResult, courtsResult] =
       await Promise.all([
         db
           .prepare(`${matchSelect} WHERE m.session_id = ? AND m.is_active = 1 ORDER BY m.court_number ASC`)
@@ -74,6 +74,10 @@ export async function GET(
           `)
           .bind(session.id)
           .all<LeaderboardEntry>(),
+        db
+          .prepare(`SELECT * FROM courts WHERE session_id = ? ORDER BY court_number ASC`)
+          .bind(session.id)
+          .all<Court>(),
       ]);
 
     const board: BoardData = {
@@ -83,6 +87,7 @@ export async function GET(
       allPlayers: allPlayersResult.results,
       recentlyEnded: recentlyEndedResult.results,
       leaderboard: leaderboardResult.results,
+      courts: courtsResult.results,
     };
 
     return NextResponse.json(board);

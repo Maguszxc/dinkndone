@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDB } from "@/lib/db";
-import { fillEmptyCourts } from "@/lib/rotation";
+import { fillEmptyCourts, reconcileStuckPlayers } from "@/lib/rotation";
 import type { Session } from "@/types";
 
 
@@ -28,6 +28,8 @@ export async function POST(
       .run();
 
     const activeSession = { ...session, is_active: 1 };
+
+    await reconcileStuckPlayers(db, session.id);
 
     // Fill all courts from queue
     await fillEmptyCourts(db, activeSession);

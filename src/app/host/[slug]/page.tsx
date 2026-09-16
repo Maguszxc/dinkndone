@@ -23,6 +23,9 @@ import {
   UserPlus,
   Link2,
   Unlink,
+  UserMinus,
+  PlusCircle,
+  Ban,
 } from "lucide-react";
 import type { BoardData, MatchWithPlayers, Player } from "@/types";
 import { ROTATION_LABELS } from "@/types";
@@ -91,6 +94,7 @@ export default function HostPage() {
   const [copiedHostCode, setCopiedHostCode] = useState(false);
   const [endModal, setEndModal] = useState<EndMatchModal | null>(null);
   const [endingMatch, setEndingMatch] = useState(false);
+  const [stoppingMatchId, setStoppingMatchId] = useState<number | null>(null);
   const [showEndSession, setShowEndSession] = useState(false);
   const [endingSession, setEndingSession] = useState(false);
   const [reveals, setReveals] = useState<Record<number, RevealState>>({});
@@ -104,9 +108,15 @@ export default function HostPage() {
   const [switchModal, setSwitchModal] = useState<SwitchModal | null>(null);
   const [switching, setSwitching] = useState(false);
 
-  // Delete player state
+  // Standby / delete player state
+  const [benchingPlayerId, setBenchingPlayerId] = useState<number | null>(null);
+  const [restoringPlayerId, setRestoringPlayerId] = useState<number | null>(null);
   const [deletingPlayerId, setDeletingPlayerId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  // Court management state
+  const [addingCourt, setAddingCourt] = useState(false);
+  const [courtBusyNum, setCourtBusyNum] = useState<number | null>(null);
 
   // Manual add player state
   const [manualName, setManualName] = useState("");
@@ -214,6 +224,17 @@ export default function HostPage() {
     fetchBoard();
   }
 
+  async function handleStopMatch(matchId: number) {
+    setStoppingMatchId(matchId);
+    await fetch(`/api/sessions/${slug}/end`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ match_id: matchId, winner_team: null }),
+    });
+    setStoppingMatchId(null);
+    fetchBoard();
+  }
+
   function handleCopy() {
     navigator.clipboard.writeText(joinUrl).catch(() => {});
     setCopied(true);
@@ -269,6 +290,28 @@ export default function HostPage() {
     fetchBoard();
   }
 
+  async function handleBenchPlayer(playerId: number) {
+    setBenchingPlayerId(playerId);
+    await fetch(`/api/sessions/${slug}/players/${playerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "standby" }),
+    });
+    setBenchingPlayerId(null);
+    fetchBoard();
+  }
+
+  async function handleRestorePlayer(playerId: number) {
+    setRestoringPlayerId(playerId);
+    await fetch(`/api/sessions/${slug}/players/${playerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "waiting" }),
+    });
+    setRestoringPlayerId(null);
+    fetchBoard();
+  }
+
   async function handleDeletePlayer(playerId: number) {
     if (confirmDeleteId !== playerId) {
       setConfirmDeleteId(playerId);
@@ -280,6 +323,24 @@ export default function HostPage() {
       method: "DELETE",
     });
     setDeletingPlayerId(null);
+    fetchBoard();
+  }
+
+  async function handleAddCourt() {
+    setAddingCourt(true);
+    await fetch(`/api/sessions/${slug}/courts`, { method: "POST" });
+    setAddingCourt(false);
+    fetchBoard();
+  }
+
+  async function handleToggleCourt(courtNumber: number, status: "active" | "disabled") {
+    setCourtBusyNum(courtNumber);
+    await fetch(`/api/sessions/${slug}/courts/${courtNumber}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    setCourtBusyNum(null);
     fetchBoard();
   }
 
@@ -399,14 +460,18 @@ export default function HostPage() {
     );
   }
 
-  const { session, activeMatches, waitingPlayers, allPlayers } = board;
+  const { session, activeMatches, waitingPlayers, allPlayers, courts } = board;
+  const standbyPlayers = allPlayers.filter((p) => p.status === "standby");
+  const activeCourtNumbers = courts
+    .filter((c) => c.status === "active")
+    .map((c) => c.court_number);
 
   const activeCourts = new Set(activeMatches.map((m) => m.court_number));
   const revealCourts = new Set(
     Object.values(reveals).map((r) => r.match.court_number),
   );
   const emptyCourts = sessionStarted
-    ? Array.from({ length: session.num_courts }, (_, i) => i + 1).filter(
+    ? activeCourtNumbers.filter(
         (n) => !activeCourts.has(n) && !revealCourts.has(n),
       )
     : [];
@@ -428,7 +493,7 @@ export default function HostPage() {
                 {ROTATION_LABELS[session.rotation_type]}
               </span>
               <span className="text-xs text-gray-500">
-                {session.num_courts} court{session.num_courts !== 1 ? "s" : ""}
+                {activeCourtNumbers.length} court{activeCourtNumbers.length !== 1 ? "s" : ""}
               </span>
             </div>
           </div>
@@ -568,6 +633,66 @@ export default function HostPage() {
           </div>
         )}
       </div>
+
+      {/* Courts management */}
+      <section className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">
+            Courts
+          </h2>
+          <button
+            onClick={handleAddCourt}
+            disabled={addingCourt}
+            className="text-xs text-green-400 hover:text-green-300 disabled:opacity-50 font-semibold flex items-center gap-1"
+          >
+            {addingCourt ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <PlusCircle className="w-3 h-3" />
+            )}
+            Add Court
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {courts.map((c) => {
+            const hasActiveMatch = activeCourts.has(c.court_number);
+            const busy = courtBusyNum === c.court_number;
+            return (
+              <button
+                key={c.court_number}
+                onClick={() =>
+                  handleToggleCourt(
+                    c.court_number,
+                    c.status === "active" ? "disabled" : "active",
+                  )
+                }
+                disabled={busy || (c.status === "active" && hasActiveMatch)}
+                title={
+                  c.status === "active" && hasActiveMatch
+                    ? "Can't disable — match in progress"
+                    : c.status === "active"
+                    ? "Disable court"
+                    : "Enable court"
+                }
+                className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 ${
+                  c.status === "active"
+                    ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                    : "bg-gray-900 text-gray-600 border border-gray-800"
+                }`}
+              >
+                {busy ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : c.status === "active" ? (
+                  <Check className="w-3 h-3 text-green-400" />
+                ) : (
+                  <Ban className="w-3 h-3" />
+                )}
+                Court {c.court_number}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Active Courts + Reveal Animations */}
       {(activeMatches.length > 0 ||
@@ -726,6 +851,19 @@ export default function HostPage() {
                         Set Teams
                       </button>
                       <button
+                        onClick={() => handleStopMatch(match.id)}
+                        disabled={stoppingMatchId === match.id}
+                        className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all"
+                        title="Stop without recording a winner"
+                      >
+                        {stoppingMatchId === match.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Ban className="w-3.5 h-3.5" />
+                        )}
+                        Stop
+                      </button>
+                      <button
                         onClick={() => setEndModal({ match })}
                         className="bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all"
                       >
@@ -863,7 +1001,7 @@ export default function HostPage() {
               )}
             {sessionStarted &&
               waitingPlayers.length >= 4 &&
-              activeMatches.length < session.num_courts && (
+              activeMatches.length < activeCourtNumbers.length && (
                 <button
                   onClick={handleStart}
                   className="text-xs text-green-400 hover:text-green-300 font-semibold flex items-center gap-1"
@@ -948,7 +1086,46 @@ export default function HostPage() {
                     <Link2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                {/* Delete player button */}
+                {/* Bench player button */}
+                {benchingPlayerId === p.id ? (
+                  <Loader2 className="w-4 h-4 text-gray-500 animate-spin flex-shrink-0" />
+                ) : (
+                  <button
+                    onClick={() => handleBenchPlayer(p.id)}
+                    className="text-gray-700 hover:text-orange-400 transition-colors p-1 flex-shrink-0"
+                    title="Move to standby"
+                  >
+                    <UserMinus className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Standby */}
+      {standbyPlayers.length > 0 && (
+        <section className="mb-5">
+          <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-3">
+            Standby — {standbyPlayers.length}
+          </h2>
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 divide-y divide-gray-800">
+            {standbyPlayers.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-sm font-semibold text-gray-400 flex-1 min-w-0">
+                  {p.name}
+                </span>
+                {restoringPlayerId === p.id ? (
+                  <Loader2 className="w-4 h-4 text-gray-500 animate-spin flex-shrink-0" />
+                ) : (
+                  <button
+                    onClick={() => handleRestorePlayer(p.id)}
+                    className="text-[10px] bg-green-500/20 hover:bg-green-500/30 text-green-400 font-bold px-2 py-1.5 rounded-lg transition-all flex-shrink-0"
+                  >
+                    Add back to queue
+                  </button>
+                )}
                 {deletingPlayerId === p.id ? (
                   <Loader2 className="w-4 h-4 text-gray-500 animate-spin flex-shrink-0" />
                 ) : confirmDeleteId === p.id ? (
@@ -957,7 +1134,7 @@ export default function HostPage() {
                       onClick={() => handleDeletePlayer(p.id)}
                       className="text-[10px] bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold px-2 py-1 rounded-lg transition-all"
                     >
-                      Remove
+                      Confirm
                     </button>
                     <button
                       onClick={() => setConfirmDeleteId(null)}
@@ -970,7 +1147,7 @@ export default function HostPage() {
                   <button
                     onClick={() => handleDeletePlayer(p.id)}
                     className="text-gray-700 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                    title="Remove from queue"
+                    title="Delete permanently"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -978,8 +1155,8 @@ export default function HostPage() {
               </div>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* All Players */}
       <section>
@@ -996,7 +1173,11 @@ export default function HostPage() {
               <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                 <div
                   className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    p.status === "playing" ? "bg-green-500" : "bg-yellow-500"
+                    p.status === "playing"
+                      ? "bg-green-500"
+                      : p.status === "standby"
+                      ? "bg-gray-600"
+                      : "bg-yellow-500"
                   }`}
                 />
                 <span className="text-sm font-medium text-white">{p.name}</span>
@@ -1004,6 +1185,8 @@ export default function HostPage() {
                   className={`ml-auto text-[10px] font-bold uppercase ${
                     p.status === "playing"
                       ? "text-green-400"
+                      : p.status === "standby"
+                      ? "text-gray-500"
                       : "text-yellow-400"
                   }`}
                 >
