@@ -229,7 +229,7 @@ export default function HostPage() {
     await fetch(`/api/sessions/${slug}/end`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ match_id: matchId, winner_team: null }),
+      body: JSON.stringify({ match_id: matchId, winner_team: null, refill: false }),
     });
     setStoppingMatchId(null);
     fetchBoard();
@@ -816,10 +816,9 @@ export default function HostPage() {
                       Court {courtNum}
                     </span>
                   </div>
-                  <div className="flex items-center justify-center gap-2 py-4">
-                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                  <div className="flex items-center justify-center gap-2 py-4 text-center">
                     <span className="text-gray-400 text-sm font-medium">
-                      A match just ended, gathering players in queue
+                      Empty — tap &quot;Fill Courts&quot; below to seat players
                     </span>
                   </div>
                 </div>

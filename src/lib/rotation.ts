@@ -272,7 +272,8 @@ export async function triggerRotation(
   db: D1Database,
   session: Session,
   endedMatch: Match,
-  winnerTeam: "a" | "b" | null
+  winnerTeam: "a" | "b" | null,
+  refill: boolean = true
 ): Promise<Match | null> {
   const winnerIds: number[] =
     !winnerTeam
@@ -298,6 +299,9 @@ export async function triggerRotation(
     const all = [endedMatch.team_a_p1, endedMatch.team_a_p2, endedMatch.team_b_p1, endedMatch.team_b_p2];
     await markPlayersWaiting(db, all);
   }
+
+  // Leave the court empty until the host manually fills it
+  if (!refill) return null;
 
   // Assemble and create the next match
   const teams = await assembleNextMatch(db, session);

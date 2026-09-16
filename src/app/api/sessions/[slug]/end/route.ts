@@ -13,7 +13,9 @@ export async function POST(
     const body = (await request.json()) as {
       match_id: number;
       winner_team: "a" | "b" | null;
+      refill?: boolean;
     };
+    const refill = body.refill ?? true;
 
     const db = await getDB();
 
@@ -52,9 +54,11 @@ export async function POST(
     const closedMatch = { ...match, is_active: 0, winner_team: body.winner_team ?? null };
 
     // Trigger rotation for this court, then fill any other empty courts
-    await triggerRotation(db, session, closedMatch, body.winner_team ?? null);
+    await triggerRotation(db, session, closedMatch, body.winner_team ?? null, refill);
     await reconcileStuckPlayers(db, session.id);
-    await fillEmptyCourts(db, session);
+    if (refill) {
+      await fillEmptyCourts(db, session);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
